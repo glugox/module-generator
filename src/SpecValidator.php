@@ -42,15 +42,15 @@ class SpecValidator
         }
 
         // models
-        if (isset($spec['models'])) {
+        if (isset($spec['entities'])) {
 
             // Ensure models is an array
-            if (!is_array($spec['models'])) {
+            if (!is_array($spec['entities'])) {
                 throw new \InvalidArgumentException('Models must be an array.');
             }
 
             // Validate each model
-            foreach ($spec['models'] as $index => $model) {
+            foreach ($spec['entities'] as $index => $model) {
                 // Ensure model is an array
                 if (!is_array($model)) {
                     throw new \InvalidArgumentException("Model entry at index {$index} must be an object.");

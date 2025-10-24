@@ -27,7 +27,7 @@ it('generates composer metadata and a manifest', function () {
             'description' => 'Invoices and payments',
             'capabilities' => ['http:web', 'http:api'],
         ],
-        'models' => [],
+        'entities' => [],
     ];
 
     $specFile = $specPath.'/billing.json';
