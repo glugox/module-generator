@@ -2,6 +2,7 @@
 
 namespace Glugox\ModuleGenerator;
 
+use Glugox\ModuleGenerator\Dto\ModuleSpecMapper;
 use Glugox\ModuleGenerator\Writers\ComposerJsonWriter;
 use Glugox\ModuleGenerator\Writers\ManufactureManifestWriter;
 use Glugox\ModuleGenerator\Writers\ModuleServiceProviderWriter;
@@ -20,6 +21,7 @@ class ModuleGeneratorManager
 
     public function __construct(
         private readonly SpecValidator $validator = new SpecValidator(),
+        private readonly ModuleSpecMapper $specMapper = new ModuleSpecMapper(),
         ?array $writers = null
     ) {
         $this->writers = $writers ?? [
@@ -36,8 +38,8 @@ class ModuleGeneratorManager
     {
         $this->validator->validate($spec);
 
-        $module = $spec['module'];
-        $moduleId = $module['id'];
+        $moduleDto = $this->specMapper->map($spec);
+        $moduleId = $moduleDto->module->id;
         [$vendor, $name] = explode('/', $moduleId, 2);
         $modulePath = base_path('modules/' . $vendor . '/' . $name);
 
