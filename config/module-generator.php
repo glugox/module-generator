@@ -17,4 +17,8 @@ return [
     'namespace' => 'App\\Modules',
 
     'stubs_path' => dirname(__DIR__) . '/stubs',
+
+    'spec' => [
+        'rules' => [],
+    ],
 ];

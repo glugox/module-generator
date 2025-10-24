@@ -1,8 +1,13 @@
 <?php
 
 
+use Glugox\ModuleGenerator\Dto\ActionDto;
+use Glugox\ModuleGenerator\Dto\EntityDto;
+use Glugox\ModuleGenerator\Dto\FieldDto;
+use Glugox\ModuleGenerator\Dto\FilterDto;
+use Glugox\ModuleGenerator\Dto\ModuleSpecMapper;
+use Glugox\ModuleGenerator\Dto\RelationDto;
 use Glugox\ModuleGenerator\Facades\ModuleGenerator;
-use Glugox\ModuleGenerator\ModuleGeneratorManager;
 use Illuminate\Support\Facades\File;
 
 $specPath = '';
@@ -27,19 +32,152 @@ it('generates composer metadata and a manifest', function () {
             'description' => 'Invoices and payments',
             'capabilities' => ['http:web', 'http:api'],
         ],
-        'entities' => [],
+        'entities' => [
+            [
+                'name' => 'Invoice',
+                'fields' => [
+                    [
+                        'name' => 'id',
+                        'type' => 'uuid',
+                        'hidden' => true,
+                        'unique' => true,
+                    ],
+                    [
+                        'name' => 'status',
+                        'type' => 'string',
+                        'searchable' => true,
+                        'default' => 'draft',
+                        'options' => ['draft', 'paid', 'void'],
+                    ],
+                    [
+                        'name' => 'total',
+                        'type' => 'decimal',
+                        'nullable' => false,
+                    ],
+                ],
+                'relations' => [
+                    [
+                        'type' => 'belongsTo',
+                        'relatedEntityName' => 'Customer',
+                        'nullable' => false,
+                    ],
+                    [
+                        'type' => 'hasMany',
+                        'relatedEntityName' => 'Payment',
+                        'cascade' => true,
+                        'pivot' => 'invoice_payment',
+                    ],
+                ],
+                'filters' => [
+                    [
+                        'field' => 'status',
+                        'type' => 'select',
+                        'label' => 'Invoice Status',
+                        'options' => ['draft', 'paid', 'void'],
+                    ],
+                ],
+                'actions' => [
+                    [
+                        'name' => 'markPaid',
+                        'type' => 'update',
+                        'field' => 'status',
+                    ],
+                ],
+            ],
+            [
+                'name' => 'Payment',
+                'fields' => [
+                    [
+                        'name' => 'id',
+                        'type' => 'uuid',
+                    ],
+                    [
+                        'name' => 'invoice_id',
+                        'type' => 'uuid',
+                        'nullable' => false,
+                    ],
+                    [
+                        'name' => 'amount',
+                        'type' => 'decimal',
+                    ],
+                ],
+                'relations' => [
+                    [
+                        'type' => 'belongsTo',
+                        'relatedEntityName' => 'Invoice',
+                        'nullable' => false,
+                    ],
+                ],
+                'filters' => [
+                    [
+                        'field' => 'created_at',
+                        'type' => 'date',
+                        'label' => 'Created At',
+                    ],
+                ],
+                'actions' => [
+                    [
+                        'name' => 'refund',
+                        'type' => 'mutation',
+                        'field' => 'status',
+                    ],
+                ],
+            ],
+        ],
     ];
 
     $specFile = $specPath.'/billing.json';
     writeSpec($specFile, $spec);
 
     $result = ModuleGenerator::generate($spec);
+    expect($result)->toBeTrue();
 
     // Check the files were created correctly
     $modulePath = base_path('modules/glugox/module-billing');
     expect(File::exists($modulePath . '/composer.json'))->toBeTrue()
         ->and(File::exists($modulePath . '/.manufacture-manifest.json'))->toBeTrue()
         ->and(File::exists($modulePath . '/src/Providers/ModuleServiceProvider.php'))->toBeTrue();
+
+    $moduleDto = (new ModuleSpecMapper())->map($spec);
+
+    expect($moduleDto->schemaVersion)->toBe('1.0.0')
+        ->and($moduleDto->module->id)->toBe('glugox/module-billing')
+        ->and($moduleDto->module->extra['capabilities'])->toBe(['http:web', 'http:api']);
+
+    /** @var array<int, EntityDto> $entities */
+    $entities = $moduleDto->entities;
+    expect($entities)->toHaveCount(2)
+        ->and($entities[0])->toBeInstanceOf(EntityDto::class)
+        ->and($entities[1])->toBeInstanceOf(EntityDto::class);
+
+    $invoice = $entities[0];
+    expect($invoice->name)->toBe('Invoice')
+        ->and($invoice->fields)->toHaveCount(3)
+        ->and($invoice->fields[0])->toBeInstanceOf(FieldDto::class)
+        ->and($invoice->fields[0]->hidden)->toBeTrue()
+        ->and($invoice->fields[0]->unique)->toBeTrue()
+        ->and($invoice->fields[1]->searchable)->toBeTrue()
+        ->and($invoice->fields[1]->options)->toBe(['draft', 'paid', 'void']);
+
+    expect($invoice->relations)->toHaveCount(2)
+        ->and($invoice->relations[0])->toBeInstanceOf(RelationDto::class)
+        ->and($invoice->relations[0]->type)->toBe('belongsTo')
+        ->and($invoice->relations[1]->pivot)->toBe('invoice_payment')
+        ->and($invoice->relations[1]->cascade)->toBeTrue();
+
+    expect($invoice->filters)->toHaveCount(1)
+        ->and($invoice->filters[0])->toBeInstanceOf(FilterDto::class)
+        ->and($invoice->filters[0]->options)->toBe(['draft', 'paid', 'void']);
+
+    expect($invoice->actions)->toHaveCount(1)
+        ->and($invoice->actions[0])->toBeInstanceOf(ActionDto::class)
+        ->and($invoice->actions[0]->field)->toBe('status');
+
+    $payment = $entities[1];
+    expect($payment->fields)->toHaveCount(3)
+        ->and($payment->relations)->toHaveCount(1)
+        ->and($payment->filters[0]->label)->toBe('Created At')
+        ->and($payment->actions[0]->name)->toBe('refund');
 
 });
 

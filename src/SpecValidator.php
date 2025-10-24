@@ -5,95 +5,237 @@ namespace Glugox\ModuleGenerator;
 class SpecValidator
 {
     /**
+     * @var array<string, mixed>
+     */
+    private array $rules;
+
+    public function __construct(?array $rules = null)
+    {
+        $configRules = [];
+        if (function_exists('config')) {
+            $configuredRules = config('module-generator.spec.rules', []);
+            if (is_array($configuredRules)) {
+                $configRules = $configuredRules;
+            }
+        }
+
+        $this->rules = $rules ?? $this->defaultRules();
+        if ($configRules !== []) {
+            $this->rules = array_replace_recursive($this->rules, $configRules);
+        }
+    }
+
+    /**
      * Validate the module specification.
      *
-     * @param array $spec The module specification to validate.
+     * @param array<string, mixed> $spec The module specification to validate.
      * @throws \InvalidArgumentException if the specification is invalid.
      */
     public function validate(array $spec): void
     {
-        // Basic validation of the spec structure
-        // schemaVersion
-        if (!isset($spec['schemaVersion']) || !is_string($spec['schemaVersion'])) {
-            throw new \InvalidArgumentException('Missing or invalid schemaVersion');
-        }
+        $this->validateNode($spec, $this->rules, 'spec');
+    }
 
-        // module
-        if (!isset($spec['module']) || !is_array($spec['module'])) {
-            throw new \InvalidArgumentException('Missing or invalid module section');
-        }
+    /**
+     * @param mixed                $value
+     * @param array<string, mixed> $rule
+     */
+    private function validateNode(mixed $value, array $rule, string $path): void
+    {
+        $nullable = (bool) ($rule['nullable'] ?? false);
 
-        // Validate module details
-        $module = $spec['module'];
-
-        // id
-        if (!isset($module['id']) || !is_string($module['id']) || !str_contains($module['id'], '/')) {
-            throw new \InvalidArgumentException('Module id must be a vendor/name string.');
-        }
-
-        // name
-        if (!isset($module['name']) || !is_string($module['name'])) {
-            throw new \InvalidArgumentException('Module name is required.');
-        }
-
-        // namespace
-        if (!isset($module['namespace']) || !is_string($module['namespace'])) {
-            throw new \InvalidArgumentException('Module namespace is required.');
-        }
-
-        // models
-        if (isset($spec['entities'])) {
-
-            // Ensure models is an array
-            if (!is_array($spec['entities'])) {
-                throw new \InvalidArgumentException('Models must be an array.');
+        if ($value === null) {
+            if ($nullable) {
+                return;
             }
 
-            // Validate each model
-            foreach ($spec['entities'] as $index => $model) {
-                // Ensure model is an array
-                if (!is_array($model)) {
-                    throw new \InvalidArgumentException("Model entry at index {$index} must be an object.");
-                }
+            throw new \InvalidArgumentException(sprintf('%s is required.', $path));
+        }
 
-                // Validate model details
-                // name
-                if (!isset($model['name']) || !is_string($model['name'])) {
-                    throw new \InvalidArgumentException("models[{$index}].name is required.");
-                }
+        $type = $rule['type'] ?? null;
 
-                // table
-                if (!isset($model['table']) || !is_string($model['table'])) {
-                    throw new \InvalidArgumentException("models[{$index}].table is required.");
-                }
+        if (is_string($type)) {
+            $this->assertType($value, $type, $path);
+        }
 
-                // fields
-                if (isset($model['fields'])) {
+        $this->applyConstraints($value, $rule, $path);
 
-                    // Ensure fields is an array
-                    if (!is_array($model['fields'])) {
-                        throw new \InvalidArgumentException("models[{$index}].fields must be an array.");
-                    }
-
-                    // Validate each field
-                    foreach ($model['fields'] as $fieldIndex => $field) {
-                        // Ensure field is an array
-                        if (!is_array($field)) {
-                            throw new \InvalidArgumentException("models[{$index}].fields[{$fieldIndex}] must be an object.");
-                        }
-
-                        // name
-                        if (!isset($field['name']) || !is_string($field['name'])) {
-                            throw new \InvalidArgumentException("models[{$index}].fields[{$fieldIndex}].name is required.");
-                        }
-
-                        // type
-                        if (!isset($field['type']) || !is_string($field['type'])) {
-                            throw new \InvalidArgumentException("models[{$index}].fields[{$fieldIndex}].type is required.");
-                        }
-                    }
-                }
+        if (isset($rule['items']) && is_array($rule['items']) && is_array($value)) {
+            foreach ($value as $index => $item) {
+                $this->validateNode($item, $rule['items'], sprintf('%s[%s]', $path, $index));
             }
         }
+
+        if (!is_array($value)) {
+            return;
+        }
+
+        if (isset($rule['required']) && is_array($rule['required'])) {
+            foreach ($rule['required'] as $key => $childRule) {
+                if (!array_key_exists($key, $value)) {
+                    throw new \InvalidArgumentException(sprintf('%s.%s is required.', $path, $key));
+                }
+
+                $this->validateNode($value[$key], $childRule, sprintf('%s.%s', $path, $key));
+            }
+        }
+
+        if (isset($rule['optional']) && is_array($rule['optional'])) {
+            foreach ($rule['optional'] as $key => $childRule) {
+                if (!array_key_exists($key, $value)) {
+                    continue;
+                }
+
+                $this->validateNode($value[$key], $childRule, sprintf('%s.%s', $path, $key));
+            }
+        }
+    }
+
+    private function assertType(mixed $value, string $expected, string $path): void
+    {
+        $isValid = match ($expected) {
+            'string' => is_string($value),
+            'bool', 'boolean' => is_bool($value),
+            'array' => is_array($value),
+            'object' => is_array($value),
+            'mixed' => true,
+            default => true,
+        };
+
+        if (!$isValid) {
+            throw new \InvalidArgumentException(sprintf('%s must be of type %s.', $path, $expected));
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $rule
+     */
+    private function applyConstraints(mixed $value, array $rule, string $path): void
+    {
+        if (isset($rule['enum']) && is_array($rule['enum']) && !in_array($value, $rule['enum'], true)) {
+            throw new \InvalidArgumentException(sprintf('%s must be one of [%s].', $path, implode(', ', $rule['enum'])));
+        }
+
+        if (isset($rule['format']) && is_string($rule['format'])) {
+            $this->validateFormat($rule['format'], $value, $path);
+        }
+    }
+
+    private function validateFormat(string $format, mixed $value, string $path): void
+    {
+        if (!is_string($value)) {
+            throw new \InvalidArgumentException(sprintf('%s must be a string to validate format.', $path));
+        }
+
+        if ($format === 'module_id' && !str_contains($value, '/')) {
+            throw new \InvalidArgumentException(sprintf('%s must be a vendor/name string.', $path));
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function defaultRules(): array
+    {
+        return [
+            'type' => 'object',
+            'required' => [
+                'schemaVersion' => ['type' => 'string'],
+                'module' => [
+                    'type' => 'object',
+                    'required' => [
+                        'id' => ['type' => 'string', 'format' => 'module_id'],
+                        'name' => ['type' => 'string'],
+                        'namespace' => ['type' => 'string'],
+                    ],
+                    'optional' => [
+                        'description' => ['type' => 'string'],
+                        'capabilities' => [
+                            'type' => 'array',
+                            'items' => ['type' => 'string'],
+                        ],
+                    ],
+                ],
+            ],
+            'optional' => [
+                'entities' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'required' => [
+                            'name' => ['type' => 'string'],
+                        ],
+                        'optional' => [
+                            'fields' => [
+                                'type' => 'array',
+                                'items' => [
+                                    'type' => 'object',
+                                    'required' => [
+                                        'name' => ['type' => 'string'],
+                                        'type' => ['type' => 'string'],
+                                    ],
+                                    'optional' => [
+                                        'searchable' => ['type' => 'bool'],
+                                        'unique' => ['type' => 'bool'],
+                                        'hidden' => ['type' => 'bool'],
+                                        'nullable' => ['type' => 'bool'],
+                                        'default' => ['type' => 'mixed', 'nullable' => true],
+                                        'options' => [
+                                            'type' => 'array',
+                                            'items' => ['type' => 'string'],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                            'relations' => [
+                                'type' => 'array',
+                                'items' => [
+                                    'type' => 'object',
+                                    'required' => [
+                                        'type' => ['type' => 'string'],
+                                        'relatedEntityName' => ['type' => 'string'],
+                                    ],
+                                    'optional' => [
+                                        'pivot' => ['type' => 'string', 'nullable' => true],
+                                        'cascade' => ['type' => 'bool'],
+                                        'nullable' => ['type' => 'bool'],
+                                    ],
+                                ],
+                            ],
+                            'filters' => [
+                                'type' => 'array',
+                                'items' => [
+                                    'type' => 'object',
+                                    'required' => [
+                                        'field' => ['type' => 'string'],
+                                        'type' => ['type' => 'string'],
+                                    ],
+                                    'optional' => [
+                                        'label' => ['type' => 'string', 'nullable' => true],
+                                        'options' => [
+                                            'type' => 'array',
+                                            'items' => ['type' => 'string'],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                            'actions' => [
+                                'type' => 'array',
+                                'items' => [
+                                    'type' => 'object',
+                                    'required' => [
+                                        'name' => ['type' => 'string'],
+                                    ],
+                                    'optional' => [
+                                        'type' => ['type' => 'string', 'nullable' => true],
+                                        'field' => ['type' => 'string', 'nullable' => true],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
     }
 }
