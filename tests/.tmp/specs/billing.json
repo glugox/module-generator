@@ -1,0 +1,14 @@
+{
+    "schemaVersion": "1.0.0",
+    "module": {
+        "id": "company/billing",
+        "name": "Billing",
+        "namespace": "Company\\Billing",
+        "description": "Invoices and payments",
+        "capabilities": [
+            "http:web",
+            "http:api"
+        ]
+    },
+    "models": []
+}

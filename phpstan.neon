@@ -1,0 +1,12 @@
+parameters:
+    level: 2
+    tmpDir: /tmp/phpstan
+
+    paths:
+        - src
+
+    excludePaths:
+        analyse:
+            - */tests/*
+            - tests/*
+            - %rootDir%/../../../tests/*
