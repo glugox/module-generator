@@ -19,6 +19,10 @@ class ComposerJsonWriter extends AbstractStubWriter
         $module = $spec['module'];
         $namespace = rtrim($module['namespace'], '\\');
 
+        // Ensure double backslashes are used in the namespace for JSON
+        $namespace = str_replace('\\', '\\\\', $namespace);
+
+
         return [
             '{{generated_at}}' => $this->generatedAt(),
             '{{module_id}}' => $module['id'],

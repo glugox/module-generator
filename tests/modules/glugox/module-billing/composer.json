@@ -1,0 +1,18 @@
+{
+    "_generatedBy": "glugox/module-generator at 2025-10-24T10:14:32+00:00",
+    "name": "glugox/module-billing",
+    "description": "Invoices and payments",
+    "type": "laravel-module",
+    "autoload": {
+        "psr-4": {
+            "Glugox\\Billing\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Glugox\\Billing\Providers\ModuleServiceProvider"
+            ]
+        }
+    }
+}

@@ -21,9 +21,9 @@ it('generates composer metadata and a manifest', function () {
     $spec = [
         'schemaVersion' => '1.0.0',
         'module' => [
-            'id' => 'company/billing',
+            'id' => 'glugox/module-billing',
             'name' => 'Billing',
-            'namespace' => 'Company\\Billing',
+            'namespace' => 'Glugox\\Billing',
             'description' => 'Invoices and payments',
             'capabilities' => ['http:web', 'http:api'],
         ],
@@ -36,7 +36,7 @@ it('generates composer metadata and a manifest', function () {
     $result = ModuleGenerator::generate($spec);
 
     // Check the files were created correctly
-    $modulePath = base_path('modules/company/billing');
+    $modulePath = base_path('modules/glugox/module-billing');
     expect(File::exists($modulePath . '/composer.json'))->toBeTrue()
         ->and(File::exists($modulePath . '/.manufacture-manifest.json'))->toBeTrue()
         ->and(File::exists($modulePath . '/src/Providers/ModuleServiceProvider.php'))->toBeTrue();
