@@ -157,19 +157,16 @@ it('generates composer metadata and a manifest', function () {
         ->and($invoice->fields[0]->hidden)->toBeTrue()
         ->and($invoice->fields[0]->unique)->toBeTrue()
         ->and($invoice->fields[1]->searchable)->toBeTrue()
-        ->and($invoice->fields[1]->options)->toBe(['draft', 'paid', 'void']);
-
-    expect($invoice->relations)->toHaveCount(2)
+        ->and($invoice->fields[1]->options)->toBe(['draft', 'paid', 'void'])
+        ->and($invoice->relations)->toHaveCount(2)
         ->and($invoice->relations[0])->toBeInstanceOf(RelationDto::class)
         ->and($invoice->relations[0]->type)->toBe('belongsTo')
         ->and($invoice->relations[1]->pivot)->toBe('invoice_payment')
-        ->and($invoice->relations[1]->cascade)->toBeTrue();
-
-    expect($invoice->filters)->toHaveCount(1)
+        ->and($invoice->relations[1]->cascade)->toBeTrue()
+        ->and($invoice->filters)->toHaveCount(1)
         ->and($invoice->filters[0])->toBeInstanceOf(FilterDto::class)
-        ->and($invoice->filters[0]->options)->toBe(['draft', 'paid', 'void']);
-
-    expect($invoice->actions)->toHaveCount(1)
+        ->and($invoice->filters[0]->options)->toBe(['draft', 'paid', 'void'])
+        ->and($invoice->actions)->toHaveCount(1)
         ->and($invoice->actions[0])->toBeInstanceOf(ActionDto::class)
         ->and($invoice->actions[0]->field)->toBe('status');
 

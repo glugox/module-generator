@@ -1,5 +1,5 @@
 parameters:
-    level: 2
+    level: max
     tmpDir: /tmp/phpstan
 
     paths:
