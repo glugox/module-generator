@@ -1,0 +1,10 @@
+{
+    "_generatedBy": "glugox/module-generator at {{generated_at}}",
+    "schemaVersion": "{{schema_version}}",
+    "module": {
+        "id": "{{module_id}}",
+        "name": "{{module_name}}",
+        "description": "{{module_description}}",
+        "capabilities": {{module_capabilities}}
+    }
+}

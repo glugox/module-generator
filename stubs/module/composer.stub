@@ -1,0 +1,18 @@
+{
+    "_generatedBy": "glugox/module-generator at {{generated_at}}",
+    "name": "{{module_id}}",
+    "description": "{{module_description}}",
+    "type": "laravel-module",
+    "autoload": {
+        "psr-4": {
+            "{{module_namespace_psr4}}": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "{{module_provider_class}}"
+            ]
+        }
+    }
+}
