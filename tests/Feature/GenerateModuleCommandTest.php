@@ -3,6 +3,11 @@
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
+afterEach(function () {
+    File::deleteDirectory(base_path('modules'));
+    File::deleteDirectory(base_path('.tmp'));
+});
+
 it('generates a module from a JSON spec via the console command', function () {
     $spec = [
         'schemaVersion' => '1.0.0',
@@ -120,7 +125,4 @@ it('generates a module from a JSON spec via the console command', function () {
     expect(File::exists($modulePath . '/composer.json'))->toBeTrue()
         ->and(File::exists($modulePath . '/.manufacture-manifest.json'))->toBeTrue()
         ->and(File::exists($modulePath . '/src/Providers/ModuleServiceProvider.php'))->toBeTrue();
-})->finally(function () {
-    File::deleteDirectory(base_path('modules'));
-    File::deleteDirectory(base_path('.tmp'));
 });
